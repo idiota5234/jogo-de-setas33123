@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Rhythm Game Ultimate</title>
+
+<style>
+
+body{
+background:#0a0a0a;
+color:white;
+font-family:Arial;
+text-align:center;
+margin:0;
+}
+
+h1{
+margin-top:20px;
+}
+
+button{
+padding:12px 25px;
+font-size:18px;
+margin:10px;
+border:none;
+border-radius:8px;
+cursor:pointer;
+background:#00e5ff;
+}
+
+button:hover{
+background:#00bcd4;
+}
+
+#game{
+display:none;
+position:relative;
+width:400px;
+height:500px;
+margin:auto;
+background:#111;
+overflow:hidden;
+border:3px solid white;
+margin-top:20px;
+}
+
+.note{
+position:absolute;
+width:80px;
+height:40px;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:34px;
+background:#222;
+border:2px solid white;
+border-radius:8px;
+}
+
+.target{
+position:absolute;
+bottom:60px;
+width:80px;
+height:40px;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:34px;
+background:#0f0;
+color:black;
+border-radius:8px;
+}
+
+.star{
+position:absolute;
+font-size:22px;
+color:yellow;
+animation:starPop 0.6s linear;
+}
+
+@keyframes starPop{
+0%{transform:scale(0.5);opacity:1;}
+100%{transform:scale(2);opacity:0;}
+}
+
+#timeBar{
+width:400px;
+height:12px;
+background:#333;
+margin:auto;
+}
+
+#timeProgress{
+height:100%;
+width:0%;
+background:#00e5ff;
+}
+
+#healthBar{
+width:400px;
+height:20px;
+background:red;
+margin:auto;
+margin-top:5px;
+}
+
+#health{
+height:100%;
+width:100%;
+background:lime;
+}
+
+#scoreBoard{
+margin-top:10px;
+font-size:20px;
+}
+
+#rating{
+position:absolute;
+top:200px;
+left:50%;
+transform:translateX(-50%);
+font-size:40px;
+display:none;
+}
+
+#gameOver{
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:black;
+color:white;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+font-size:40px;
+}
+
+#player{
+margin-top:10px;
+font-size:40px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>🎵 Rhythm Game Ultimate</h1>
+
+<div id="menu">
+
+<h2>Jogar Agora</h2>
+
+<h3>Dificuldade</h3>
+
+<button onclick="startGame('easy')">Fácil</button>
+<button onclick="startGame('normal')">Normal</button>
+<button onclick="startGame('hard')">Difícil</button>
+
+<h3>Música</h3>
+
+<select id="musicSelect">
+<option value="https://cdn.pixabay.com/audio/2022/03/15/audio_c8a3a1bfe0.mp3">Eletrônica</option>
+<option value="https://cdn.pixabay.com/audio/2021/09/06/audio_6c0c4c4b75.mp3">Arcade</option>
+<option value="https://cdn.pixabay.com/audio/2022/10/25/audio_946c8d0c3f.mp3">Dance</option>
+</select>
+
+<h3>Cores das setas</h3>
+
+⬅ <input type="color" id="colorLeft" value="#ffffff">
+⬆ <input type="color" id="colorUp" value="#ffffff">
+⬇ <input type="color" id="colorDown" value="#ffffff">
+➡ <input type="color" id="colorRight" value="#ffffff">
+
+<button onclick="applyArrowColors()">Aplicar cores</button>
+
+</div>
+
+<div id="player">🕺</div>
+
+<div id="timeBar">
+<div id="timeProgress"></div>
+</div>
+
+<div id="healthBar">
+<div id="health"></div>
+</div>
+
+<div id="scoreBoard">
+Pontuação: <span id="score">0</span> |
+Combo: <span id="combo">0</span>
+</div>
+
+<div id="game">
+
+<div class="target" style="left:0">⬅</div>
+<div class="target" style="left:100px">⬆</div>
+<div class="target" style="left:200px">⬇</div>
+<div class="target" style="left:300px">➡</div>
+
+<div id="rating"></div>
+
+</div>
+
+<div id="gameOver">
+
+💀 GAME OVER
+
+<br>
+
+<button onclick="location.reload()">Jogar novamente</button>
+
+</div>
+
+<script>
+
+let game=document.getElementById("game")
+let menu=document.getElementById("menu")
+
+let notes=[]
+let speed=4
+let spawnRate=900
+
+let score=0
+let combo=0
+
+let scoreText=document.getElementById("score")
+let comboText=document.getElementById("combo")
+
+let health=100
+let healthBar=document.getElementById("health")
+
+let rating=document.getElementById("rating")
+
+let gameRunning=false
+
+let music=new Audio()
+
+let timeProgress=document.getElementById("timeProgress")
+
+let arrows=["⬅","⬆","⬇","➡"]
+
+let controls={
+left:"ArrowLeft",
+up:"ArrowUp",
+down:"ArrowDown",
+right:"ArrowRight"
+}
+
+function startGame(diff){
+
+menu.style.display="none"
+game.style.display="block"
+
+music.src=document.getElementById("musicSelect").value
+
+if(diff=="easy"){
+speed=3
+spawnRate=1200
+}
+
+if(diff=="normal"){
+speed=4
+spawnRate=900
+}
+
+if(diff=="hard"){
+speed=6
+spawnRate=600
+}
+
+music.play()
+
+gameRunning=true
+
+setInterval(spawnNote,spawnRate)
+
+}
+
+function spawnNote(){
+
+if(!gameRunning)return
+
+let lane=Math.floor(Math.random()*4)
+
+let note=document.createElement("div")
+
+note.classList.add("note")
+
+note.innerHTML=arrows[lane]
+
+note.style.left=(lane*100)+"px"
+note.style.top="0px"
+
+applyColor(note,lane)
+
+game.appendChild(note)
+
+notes.push({element:note,lane:lane,y:0})
+
+}
+
+function applyColor(note,lane){
+
+let colors=[
+document.getElementById("colorLeft").value,
+document.getElementById("colorUp").value,
+document.getElementById("colorDown").value,
+document.getElementById("colorRight").value
+]
+
+note.style.color=colors[lane]
+
+}
+
+function applyArrowColors(){
+
+document.querySelectorAll(".target").forEach((t,i)=>{
+
+applyColor(t,i)
+
+})
+
+}
+
+function createStars(){
+
+for(let i=0;i<6;i++){
+
+let star=document.createElement("div")
+
+star.classList.add("star")
+
+star.innerHTML="⭐"
+
+star.style.left=(180+Math.random()*40)+"px"
+star.style.top=(350+Math.random()*40)+"px"
+
+game.appendChild(star)
+
+setTimeout(()=>{star.remove()},600)
+
+}
+
+}
+
+function showRating(text,color){
+
+rating.innerText=text
+rating.style.color=color
+rating.style.display="block"
+
+setTimeout(()=>{
+
+rating.style.display="none"
+
+},300)
+
+}
+
+function update(){
+
+if(gameRunning){
+
+notes.forEach((n,i)=>{
+
+n.y+=speed
+
+n.element.style.top=n.y+"px"
+
+if(n.y>450){
+
+damage(10)
+combo=0
+updateScore()
+
+n.element.remove()
+notes.splice(i,1)
+
+}
+
+})
+
+if(music.duration){
+
+let percent=(music.currentTime/music.duration)*100
+
+timeProgress.style.width=percent+"%"
+
+}
+
+}
+
+requestAnimationFrame(update)
+
+}
+
+update()
+
+function updateScore(){
+
+scoreText.innerText=score
+comboText.innerText=combo
+
+}
+
+function damage(amount){
+
+health-=amount
+
+if(health<0)health=0
+
+healthBar.style.width=health+"%"
+
+if(health<=0){
+
+gameRunning=false
+music.pause()
+
+document.getElementById("gameOver").style.display="flex"
+
+}
+
+}
+
+document.addEventListener("keydown",(e)=>{
+
+if(!gameRunning)return
+
+let lane=null
+
+if(e.key===controls.left) lane=0
+if(e.key===controls.up) lane=1
+if(e.key===controls.down) lane=2
+if(e.key===controls.right) lane=3
+
+notes.forEach((n,i)=>{
+
+let diff=Math.abs(n.y-390)
+
+if(n.lane===lane){
+
+if(diff<10){
+
+score+=300
+combo++
+showRating("SICK","cyan")
+createStars()
+
+}
+
+else if(diff<30){
+
+score+=150
+combo++
+showRating("GOOD","lime")
+
+}
+
+else{
+
+score+=50
+combo=0
+showRating("BAD","orange")
+
+}
+
+updateScore()
+
+n.element.remove()
+notes.splice(i,1)
+
+}
+
+})
+
+})
+
+</script>
+
+</body>
+</html>
